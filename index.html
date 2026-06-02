@@ -419,10 +419,11 @@
       let analyser;
       let microphoneStream;
       let animationFrame;
-      let blowFrames = 0;
       let lit = true;
+      let lastSampleTime = 0;
+      let sustainedBlowTime = 0;
       const blowThreshold = 0.2;
-      const requiredBlowFrames = 42;
+      const requiredBlowDuration = 1600;
 
       const setStatus = (message) => {
         statusText.textContent = message;
@@ -474,13 +475,17 @@
           const level = Math.min(1, volume * 8);
           meterFill.style.setProperty('--level', level.toFixed(3));
 
+          const now = performance.now();
+          const elapsed = lastSampleTime ? now - lastSampleTime : 0;
+          lastSampleTime = now;
+
           if (volume > blowThreshold) {
-            blowFrames += 1;
+            sustainedBlowTime += elapsed;
           } else {
-            blowFrames = Math.max(0, blowFrames - 2);
+            sustainedBlowTime = Math.max(0, sustainedBlowTime - elapsed * 2);
           }
 
-          if (blowFrames > requiredBlowFrames) {
+          if (sustainedBlowTime > requiredBlowDuration) {
             extinguishCandles();
             return;
           }
@@ -510,6 +515,8 @@
           source.connect(analyser);
 
           startButton.textContent = 'Listening for a blow...';
+          sustainedBlowTime = 0;
+          lastSampleTime = 0;
           setStatus('Now give the candles a long, steady blow.');
           listenForBlow();
         } catch (error) {
